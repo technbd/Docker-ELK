@@ -194,66 +194,69 @@ chown -R 1000:0 es01_data
 _Create file `docker-compose.yml`:_
 ```
 services:
-  es01:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.15.1   # replace version if you want
-    container_name: elasticsearch01
-    environment:
-      node.name: es01
-      cluster.name: docker-cluster
-      discovery.type: single-node
-      bootstrap.memory_lock: "true"
-      xpack.security.enabled: "false"    # disable security for quick local testing
-      ELASTIC_PASSWORD: elastic          # If security is disabled, Elasticsearch will ignore ELASTIC_PASSWORD.
-      ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+ es01:
+   build:
+     context: ./elasticSearch
+     dockerfile: Dockerfile
+   container_name: elasticsearch01
 
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - ./es01_data:/usr/share/elasticsearch/data
-    ports:
-      - "9200:9200"
-      - "9300:9300"
-    networks:
-      - elk
+   volumes:
+     - ./es01_data:/usr/share/elasticsearch/data
+   ports:
+     - "9200:9200"
+     - "9300:9300"
 
-  kibana:
-    image: docker.elastic.co/kibana/kibana:7.15.1
-    container_name: kibana01
-    environment:
-      SERVER_NAME: kibana
-      ELASTICSEARCH_HOSTS: "http://es01:9200"
-      ELASTICSEARCH_USERNAME: elastic
-      ELASTICSEARCH_PASSWORD: elastic
-    ports:
-      - "5601:5601"
-    depends_on:
-      - es01
-    networks:
-      - elk
+   environment:
+     discovery.type: single-node
+     ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+     ELASTIC_PASSWORD: elastic
+   networks:
+     - elk
 
-  logstash:
-    image: docker.elastic.co/logstash/logstash:7.15.1
-    container_name: logstash01
-    environment:
-      ELASTIC_PASSWORD: elastic
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
-    volumes:
-      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
-      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-    ports:
-      - "5044:5044"   # beats input
-      - "5000:5000"   # tcp input (optional)
-    depends_on:
-      - es01
-    networks:
-      - elk
+ logstash:
+   build:
+     context: ./logstash
+     dockerfile: Dockerfile
+   container_name: logstash01
+
+   #volumes:
+
+   ports:
+     - "9600:9600"
+     - "5000:5000"
+     - "5044:5044"
+
+   environment:
+     LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+
+   networks:
+     - elk
+   depends_on:
+     - es01
+
+ kibana:
+   build:
+     context: ./kibana
+     dockerfile: Dockerfile
+   container_name: kibana01
+
+   #volumes:
+
+   ports:
+     - "5601:5601"
+
+   #environment:
+     #SERVER_NAME: kibana
+
+   networks:
+     - elk
+   depends_on:
+     - es01
 
 networks:
-  elk:
-    driver: bridge
-    external: true
+ elk:
+   driver: bridge
+   external: true
 
 ```
 
