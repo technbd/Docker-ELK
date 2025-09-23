@@ -1,0 +1,65 @@
+services:
+ es01:
+   build:
+     context: ./elasticSearch
+     dockerfile: Dockerfile
+   container_name: elasticsearch01
+
+   volumes:
+     - ./es01_data:/usr/share/elasticsearch/data
+   ports:
+     - "9200:9200"
+     - "9300:9300"
+
+   environment:
+     discovery.type: single-node
+     ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+     ELASTIC_PASSWORD: elastic
+   networks:
+     - elk
+
+ logstash:
+   build:
+     context: ./logstash
+     dockerfile: Dockerfile
+   container_name: logstash01
+
+   #volumes:
+
+   ports:
+     - "9600:9600"
+     - "5000:5000"
+     - "5044:5044"
+
+   environment:
+     LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+
+   networks:
+     - elk
+   depends_on:
+     - es01
+
+ kibana:
+   build:
+     context: ./kibana
+     dockerfile: Dockerfile
+   container_name: kibana01
+
+   #volumes:
+
+   ports:
+     - "5601:5601"
+
+   #environment:
+     #SERVER_NAME: kibana
+
+   networks:
+     - elk
+   depends_on:
+     - es01
+
+networks:
+ elk:
+   driver: bridge
+   external: true
+
