@@ -8,10 +8,10 @@ services:
       discovery.type: single-node
       bootstrap.memory_lock: "true"
       #xpack.security.enabled: "false"    # disable security for quick local testing
-      xpack.security.enabled: "true"    
+      xpack.security.enabled: "true"
       ELASTIC_PASSWORD: elastic          # If security is disabled, Elasticsearch will ignore ELASTIC_PASSWORD
       ES_JAVA_OPTS: "-Xms256m -Xmx256m"
-      
+
     ulimits:
       memlock:
         soft: -1
@@ -48,9 +48,10 @@ services:
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - /var/log/audit/audit.log:/var/log/audit/audit.log:ro
 
     command: logstash -f /usr/share/logstash/pipeline/logstash.conf
-    user: root 
+    user: root
     ports:
       - "5044:5044"   # beats input
       - "5000:5000"   # tcp input (optional)

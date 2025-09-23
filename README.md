@@ -355,6 +355,27 @@ output {
 ```
 
 
+Or, To test without Filebeat, mount `audit.log` into Logstash and read via file input:
+```
+input {
+  file {
+    path => "/var/log/audit/audit.log"
+    start_position => "beginning"
+    sincedb_path => "/dev/null"
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["http://es01:9200"]
+    index => "logstash-docker-%{+YYYY.MM.dd}"
+    user => "elastic"
+    password => "elastic"
+  }
+}
+```
+
+
 ```
 ll logstash/
 
@@ -425,6 +446,7 @@ services:
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - /var/log/audit/audit.log:/var/log/audit/audit.log:ro
 
     command: logstash -f /usr/share/logstash/pipeline/logstash.conf
     #user: root
@@ -502,11 +524,18 @@ hello from logstash
 ```
 
 
-Or, 
+Or,
+
 ```
 echo "hello from logstash test" | nc localhost 5000
 ```
 
+
+
+_If connection fails → Logstash port 5044 is not reachable from Filebeat host. Check it:_
+```
+nc -zv 192.168.10.193 5044
+```
 
 
 
@@ -554,7 +583,10 @@ _Start Filebeat:_
 ```
 
 
-
+_Enable debug output:_
+```
+filebeat -e -d "*"
+```
 
 
 
