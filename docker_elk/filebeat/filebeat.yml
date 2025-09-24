@@ -1,0 +1,11 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    #- /var/log/audit/audit.log
+    - /var/log/nginx/access.log
+
+output.logstash:
+  #hosts: ["localhost:5044"]
+  hosts: ["192.168.10.193:5044"]
+  

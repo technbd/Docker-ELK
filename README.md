@@ -590,6 +590,180 @@ filebeat -e -d "*"
 
 
 
+
+#### ELK with Filebeat:
+
+_Plain input:_
+```
+vim filebeat/filebeat.yml
+
+
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    #- /var/log/audit/audit.log
+    - /var/log/nginx/access.log
+
+output.logstash:
+  #hosts: ["localhost:5044"]
+  hosts: ["192.168.10.193:5044"]
+```
+
+
+
+_Auditd module:_
+```
+vim filebeat/filebeat.yml
+
+
+filebeat.modules:
+  - module: system
+    syslog:
+      enabled: true
+      var.paths: ["/var/log/syslog*"]
+
+  - module: system
+    auth:
+      enabled: true
+      var.paths: ["/var/log/auth.log*"]
+
+  - module: auditd
+    log:
+      enable: true
+      var.path: ["/var/log/audit/audit.log"]
+
+#output.elasticsearch:
+#  hosts: "<http://elasticsearch:9200>"
+
+#setup.kibana:
+#  host: "<http://kibana:5601>"
+
+output.logstash:
+  #hosts: ["localhost:5044"]
+  hosts: ["192.168.10.193:5044"]
+```
+
+
+```
+ll filebeat/
+
+-rw-r--r-- 1 root root 483 Sep 24 13:21 filebeat.yml
+```
+
+
+```
+tree filebeat/
+
+filebeat/
+└── filebeat.yml
+```
+
+
+_ELK with Docker-compose including Filebeat:_
+```
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.15.1   # replace version if you want
+    container_name: elasticsearch01
+    environment:
+      node.name: es01
+      cluster.name: docker-cluster
+      discovery.type: single-node
+      bootstrap.memory_lock: "true"
+      #xpack.security.enabled: "false"    # disable security for quick local testing
+      xpack.security.enabled: "true"
+      ELASTIC_PASSWORD: elastic          # If security is disabled, Elasticsearch will ignore ELASTIC_PASSWORD
+      ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./es01_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - elk
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.15.1
+    container_name: kibana01
+    environment:
+      SERVER_NAME: kibana
+      ELASTICSEARCH_HOSTS: "http://es01:9200"
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: elastic
+    ports:
+      - "5601:5601"
+    depends_on:
+      - es01
+    networks:
+      - elk
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.15.1
+    container_name: logstash01
+    environment:
+      ELASTIC_PASSWORD: elastic
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - /var/log/audit/audit.log:/var/log/audit/audit.log:ro
+
+    command: logstash -f /usr/share/logstash/pipeline/logstash.conf
+    user: root
+    ports:
+      - "5044:5044"   # beats input
+      - "5000:5000"   # tcp input (optional)
+    depends_on:
+      - es01
+    networks:
+      - elk
+
+  filebeat:
+    image: elastic/filebeat:7.15.1
+    container_name: filebeat01
+
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      #- /var/lib/docker/containers:/var/lib/docker/containers:ro
+      #- /var/run/docker.sock:/var/run/docker.sock:ro
+      #- /var/log/syslog:/var/log/syslog:ro
+      #- /var/log/auth.log:/var/log/auth.log:ro
+      - /var/log/audit/audit.log:/var/log/audit/audit.log:ro
+      - /var/log/nginx/access.log:/var/log/nginx/access.log:ro
+
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    user: root
+
+    networks:
+      - elk
+    depends_on:
+      - es01
+      - kibana
+      - logstash
+
+networks:
+  elk:
+    driver: bridge
+    external: true
+
+```
+
+
+
+
+```
+docker compose up -d
+```
+
+
+
+
 ### License:
 This project is licensed under the **MIT** License.
 
@@ -604,4 +778,7 @@ This project is licensed under the **MIT** License.
 - [Elasticsearch with Docker](https://www.elastic.co/guide/en/elasticsearch/reference/7.5/docker.html)
 - [Kibana with Docker](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-kibana-with-docker)
 - [Logstash for Docker](https://www.elastic.co/docs/reference/logstash/docker-config)
+- [Filebeat on Docker](https://www.elastic.co/docs/reference/beats/filebeat/running-on-docker)
+- [Filebeat Inputs](https://www.elastic.co/docs/reference/beats/filebeat/configuration-filebeat-options)
+- [Filebeat Modules](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-modules)
 
